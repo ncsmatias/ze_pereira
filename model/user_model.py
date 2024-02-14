@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.sql import func
 from database import db
 
 class UserModel(db.Model):
@@ -14,6 +15,8 @@ class UserModel(db.Model):
   entry_year = db.Column(db.DateTime, nullable=True)
   exit_year = db.Column(db.DateTime, default=None)
   admin = db.Column(db.Boolean, default=False)
+  created_at = db.Column(db.DateTime, default=func.now())
+  update_at = db.Column(db.DateTime, default=None)
 
   def __init__(self, username, name, email, password, entry_year, admin):
     self.username = username
@@ -53,14 +56,18 @@ class UserModel(db.Model):
     db.session.add(self)
     db.session.commit()
   
-  def update_user(self, username, name, email, entry_year, exit_year, admin):
+  def update_user(self, username, name, email, entry_year, exit_year):
     self.username = username
     self.name = name
     self.email = email
-    self.entry_year = entry_year
-    self.exit_year = exit_year
-    self.admin = admin
+    self.entry_year = datetime.strptime(str(entry_year), '%Y')
+    self.exit_year = datetime.strptime(str(exit_year), '%Y')
+    self.update_at = func.now()
   
+  def turn_admin_user(self):
+    self.admin = not self.admin
+    self.update_at = func.now()
+    
   def delete_user(self):
     db.session.delete(self)
     db.session.commit()
