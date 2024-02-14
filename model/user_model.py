@@ -10,7 +10,7 @@ class UserModel(db.Model):
   username = db.Column(db.String)
   name = db.Column(db.String)
   email = db.Column(db.String, unique=True)
-  password = db.Column(db.String)
+  password = db.Column(db.String(255))
   entry_year = db.Column(db.DateTime, nullable=True)
   exit_year = db.Column(db.DateTime, default=None)
   admin = db.Column(db.Boolean, default=False)
