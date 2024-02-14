@@ -93,6 +93,27 @@ def delete_user():
   except Exception as e:
     return make_response(jsonify({'message': 'error deleting user', 'error': str(e)}), 500)
 
+@user_bp.route('/user/admin/<string:id>', methods=['PUT'])
+@jwt_required()
+def turn_user_admin(id):
+  try:
+    jwt = get_jwt()
+    admin = jwt.get('admin')
+    if not admin:
+      return make_response(jsonify({'message': 'Unauthorized: Only administrators can create a admin user.'}), 401)
+    
+    data = UserModel.find_user_by_id(id)
+
+    if data is None:
+      return make_response(jsonify({'message': 'user not find'}), 404)
+    
+    data.turn_admin_user()
+    data.save_user()
+
+    return make_response(jsonify(data.json()), 200)
+  except Exception as e:
+    return make_response(jsonify({'message': 'error turning user admin', 'error': str(e)}), 500)
+  
 @user_bp.route('/login', methods=['POST'])
 def login():
   try:
