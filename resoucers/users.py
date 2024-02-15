@@ -1,5 +1,5 @@
 import bcrypt
-from flask import request, jsonify, Blueprint
+from flask import request, Blueprint
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt, get_jwt_identity
 from model.user_model import UserModel
 from blocklist import BLOCKLIST
@@ -144,7 +144,7 @@ def logout():
     jwt = get_jwt()
     id = jwt.get('jti')
     BLOCKLIST.add(id)
-    
+
     return make_response.create_response({'message': 'Logout successful. You have been successfully logged out.'}, 200)
   except Exception as e:
     return make_response.create_response({'message': 'Failed to logout user due to an internal server error.', 'error': str(e)}, 500)
