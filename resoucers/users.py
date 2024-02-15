@@ -1,8 +1,9 @@
 import bcrypt
-from flask import request, make_response, jsonify, Blueprint
+from flask import request, jsonify, Blueprint
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt, get_jwt_identity
 from model.user_model import UserModel
 from blocklist import BLOCKLIST
+from utils import hash, make_response
 
 user_bp = Blueprint('user', __name__)
 
@@ -13,20 +14,18 @@ def create_user():
     jwt = get_jwt()
     admin = jwt.get('admin')
     if not admin:
-      return make_response(jsonify({'message': 'Unauthorized: Only administrators can create a new user.'}), 401)
+      return make_response.create_response({'message': 'Only administrators can create a new user.'}, 401)
     
     data = request.get_json()
     password = data.pop('password')
-    password_bytes = password.encode('utf-8')
-    hash = bcrypt.hashpw(password_bytes, bcrypt.gensalt())
-    hash_decode = hash.decode('utf-8')
-    new_user = UserModel(**data, password=hash_decode)
+    hash_password = hash.hash_password(password=password)
+    new_user = UserModel(**data, password=hash_password)
     new_user.save_user()
 
-    return make_response(jsonify({'message': 'user created'}), 201)
+    return make_response.create_response({'message': 'User created successfully.'}, 201)
   
   except Exception as e:
-    return make_response(jsonify({'message': 'error creating user', 'error': str(e)}), 500)
+    return make_response.create_response({'message': 'Failed to create user. Please check your input and try again later.', 'error': str(e)}, 500)
 
 @user_bp.route('/users', methods=['GET'])
 @jwt_required()
@@ -35,13 +34,13 @@ def get_users():
     jwt = get_jwt()
     admin = jwt.get('admin')
     if not admin:
-      return make_response(jsonify({'message': 'Unauthorized: Only administrators can list all users.'}), 401)
+      return make_response.create_response({'message': 'Only administrators are authorized to list all users.'}, 401)
     
     data = [user.json() for user in UserModel.query.all()]
-    return make_response(jsonify(data), 200)
+    return make_response.create_response(data, 200)
   
   except Exception as e:
-    return make_response(jsonify({'message': 'error getting user', 'error': str(e)}), 500)
+    return make_response.create_response({'message': 'Internal server error occurred while retrieving user information.', 'error': str(e)}, 500)
 
 @user_bp.route('/user', methods=['GET'])
 @jwt_required()
@@ -51,12 +50,12 @@ def get_user_by_id():
     data = UserModel.find_user_by_id(id)
 
     if data is None:
-        return make_response(jsonify({'message': 'user not find'}), 404)
+        return make_response.create_response({'message': 'User not found.'}, 404)
     
-    return make_response(jsonify(data.json()), 200)
+    return make_response.create_response(data.json(), 200)
   
   except Exception as e:
-    return make_response(jsonify({'message': 'error getting user', 'error': str(e)}), 500)
+    return make_response.create_response({'message': 'Internal server error occurred while retrieving user information.', 'error': str(e)}, 500)
 
 @user_bp.route('/user', methods=['PUT'])
 @jwt_required()
@@ -66,16 +65,16 @@ def update_user():
     data = UserModel.find_user_by_id(id)
 
     if data is None:
-      return make_response(jsonify({'message': 'user not find'}), 404)
+      return make_response.create_response({'message': 'User not found.'}, 404)
     
     body = request.get_json()
     data.update_user(**body)
     data.save_user()
 
-    return make_response(jsonify(data.json()), 200)
+    return make_response.create_response(data.json(), 200)
 
   except Exception as e:
-    return make_response(jsonify({'message': 'error updating user', 'error': str(e)}), 500)
+    return make_response.create_response({'message': 'Failed to update user information due to an internal server error.', 'error': str(e)}, 500)
 
 @user_bp.route('/user', methods=['DELETE'])
 @jwt_required()
@@ -85,13 +84,13 @@ def delete_user():
     data = UserModel.find_user_by_id(id)
 
     if data is None:
-      return make_response(jsonify({'message': 'user not find'}), 404)
+      return make_response.create_response({'message': 'User not found.'}, 404)
 
     data.delete_user()
-    return make_response(jsonify({'message': 'user deleted'}), 200)
+    return make_response.create_response({'message': 'User deleted successfully.'}, 200)
   
   except Exception as e:
-    return make_response(jsonify({'message': 'error deleting user', 'error': str(e)}), 500)
+    return make_response.create_response({'message': 'Failed to delete user due to an internal server error.', 'error': str(e)}, 500)
 
 @user_bp.route('/user/admin/<string:id>', methods=['PUT'])
 @jwt_required()
@@ -100,19 +99,19 @@ def turn_user_admin(id):
     jwt = get_jwt()
     admin = jwt.get('admin')
     if not admin:
-      return make_response(jsonify({'message': 'Unauthorized: Only administrators can create a admin user.'}), 401)
+      return make_response.create_response({'message': 'Only administrators have permission to create an admin user.'}, 401)
     
     data = UserModel.find_user_by_id(id)
 
     if data is None:
-      return make_response(jsonify({'message': 'user not find'}), 404)
+      return make_response.create_response({'message': 'User not found.'}, 404)
     
     data.turn_admin_user()
     data.save_user()
 
-    return make_response(jsonify(data.json()), 200)
+    return make_response(data.json(), 200)
   except Exception as e:
-    return make_response(jsonify({'message': 'error turning user admin', 'error': str(e)}), 500)
+    return make_response.create_response({'message': 'Failed to grant admin privileges to the user due to an internal server error.', 'error': str(e)}, 500)
   
 @user_bp.route('/login', methods=['POST'])
 def login():
@@ -124,7 +123,7 @@ def login():
     data = UserModel.find_user_by_email(email)
 
     if data is None:
-      return make_response(jsonify({'message': 'email or password incorrect'}), 404)
+      return make_response.create_response({'message': 'Invalid email or password. Please double-check your credentials.'}, 404)
     
     password_bytes = password.encode('utf-8')
     password_hash = data.password.encode('utf-8')
@@ -132,11 +131,11 @@ def login():
     result = bcrypt.checkpw(password_bytes, password_hash) 
 
     if not result:
-      return make_response(jsonify({'message': 'email or password incorrect'}), 401)
+      return make_response.create_response({'message': 'Invalid email or password. Please double-check your credentials.'}, 404)
     
-    return make_response(jsonify({'access_token': create_access_token(identity=data.id, additional_claims={'admin': data.admin})}), 200)
+    return make_response.create_response({'access_token': create_access_token(identity=data.id, additional_claims={'admin': data.admin})}, 200)
   except Exception as e:
-    return make_response(jsonify({'message': 'error login user', 'error': str(e)}), 500)
+    return make_response.create_response({'message': 'Failed to login due to an internal server error. Please try again later.', 'error': str(e)}, 500)
 
 @user_bp.route('/logout', methods=['POST'])
 @jwt_required()
@@ -145,6 +144,7 @@ def logout():
     jwt = get_jwt()
     id = jwt.get('jti')
     BLOCKLIST.add(id)
-    return {'message': 'Logged out successfully'}, 200
+    
+    return make_response.create_response({'message': 'Logout successful. You have been successfully logged out.'}, 200)
   except Exception as e:
-    return make_response(jsonify({'message': 'error logout user', 'error': str(e)}), 500)
+    return make_response.create_response({'message': 'Failed to logout user due to an internal server error.', 'error': str(e)}, 500)
